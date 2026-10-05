@@ -1,5 +1,5 @@
 /** The Varis API. The only place the hostname appears in the SDK. */
-export const VARIS_API_ORIGIN = "https://api.varis.my";
+export const VARIS_API_ORIGIN = "https://api.usevaris.com";
 
 /** Where the gateway publishes the public keys it signs requests with. */
 export const VARIS_SIGNING_KEYS_URL =

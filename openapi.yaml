@@ -48,7 +48,7 @@ info:
   version: 0.1.0
   license:
     name: Proprietary
-    url: https://varis.my/terms
+    url: https://usevaris.com/terms
   # Markdown. Becomes the landing page of generated docs.
   description: |
     Varis lets autonomous agents discover, pay for, and invoke software
@@ -71,13 +71,13 @@ info:
 # This is where the SDK's default base URL comes from. Add a `staging` entry
 # here later and the generator gives users a way to switch.
 #
-# Paths below start at /v1, so this resolves to https://api.varis.my/v1/invoke.
+# Paths below start at /v1, so this resolves to https://api.usevaris.com/v1/invoke.
 # Your route file lives at app/api/v1/invoke, so production needs a rewrite in
 # next.config.ts stripping the /api prefix. The alternative is changing every
 # path below to /api/v1, which is uglier and permanent.
 # -----------------------------------------------------------------------------
 servers:
-  - url: https://api.varis.my
+  - url: https://api.usevaris.com
     description: Production
 
 # -----------------------------------------------------------------------------
@@ -273,7 +273,7 @@ paths:
                   code: insufficient_funds
                   message: The balance does not cover this call.
                   shortfall_credits: 150
-                  funding_url: https://varis.my/fund/t/abc123
+                  funding_url: https://usevaris.com/fund/t/abc123
                 request_id: var_req_fc8e8702-6a7f-4f3f-9147-748936e5fee1
         "403":
           description: |
@@ -1404,12 +1404,12 @@ components:
           type: string
           format: uri
           description: The approval page. Print it with the user code.
-          example: https://varis.my/authorisation/device
+          example: https://usevaris.com/authorisation/device
         verification_uri_complete:
           type: string
           format: uri
           description: The approval page with the user code filled in. Open it in a browser when one is available.
-          example: https://varis.my/authorisation/device?code=WDJB-MJHT
+          example: https://usevaris.com/authorisation/device?code=WDJB-MJHT
         expires_in:
           type: integer
           description: Seconds until the device code and user code stop working.
