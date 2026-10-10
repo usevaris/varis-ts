@@ -17,6 +17,13 @@ export interface ServiceDefinition {
   name: string;
   /** Description must be between 20 and 1024 characters. Agents read this to decide whether to call this service. */
   description: string;
+  /**
+   * How an agent should use the service, when the input alone doesn't say.
+   * At most 2,000 characters. Agents read it with the description before
+   * calling. For example: "Call search-organisations first, and pass the
+   * organisation's id as organisation_id."
+   */
+  instructions?: string;
   service_type: ServiceType;
   /** At least one category slug from the platform's closed list. Categories tell agents what domain the service covers. */
   categories: ServiceCategory[];

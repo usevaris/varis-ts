@@ -680,3 +680,192 @@ describe("findWarnings", () => {
     expect(findWarnings(dir)).toEqual([]);
   });
 });
+
+describe("descriptions from comments", () => {
+  /** Builds one POST service from `source` (which declares Input and Output) and returns its two schemas. POST, so Input may nest. */
+  function schemasOf(source: string): { input: any; output: any } {
+    const dir = makeProject({
+      "src/service.ts": `
+import { Varis } from "@usevaris/sdk";
+${source}
+new Varis().services.define<Input, Output>({
+${fields("described", { method: `"POST"` })}
+});`,
+    });
+    build(dir);
+    const [service] = readManifest(dir).services;
+    return { input: service.input_schema, output: service.output_schema };
+  }
+
+  it("reads JSDoc, block, line, and end-of-line comments on fields", () => {
+    const { input } = schemasOf(`
+type Input = {
+  /** A JSDoc comment. */
+  a: string;
+  /* A block comment. */
+  b: string;
+  // A line comment.
+  c: string;
+  d: string; // An end-of-line comment.
+};
+type Output = { ok: boolean };`);
+
+    expect(input.properties).toEqual({
+      a: { description: "A JSDoc comment.", type: "string" },
+      b: { description: "A block comment.", type: "string" },
+      c: { description: "A line comment.", type: "string" },
+      d: { description: "An end-of-line comment.", type: "string" },
+    });
+  });
+
+  it("reads comments on types written inline in define", () => {
+    const dir = makeProject({
+      "src/service.ts": `
+import { Varis } from "@usevaris/sdk";
+new Varis().services.define<{
+  /* The full name of the city. */
+  city: string;
+}, {
+  // The greeting to show the user.
+  message: string;
+}>({
+${fields("inline")}
+});`,
+    });
+    build(dir);
+    const [service] = readManifest(dir).services;
+
+    expect(service.input_schema.properties.city.description).toBe("The full name of the city.");
+    expect(service.output_schema.properties.message.description).toBe("The greeting to show the user.");
+  });
+
+  it("describes the schema from the comment above a named type", () => {
+    const { input, output } = schemasOf(`
+/** What to look up. */
+interface Input { city: string }
+// The forecast.
+type Output = { temp: number };`);
+
+    expect(Object.keys(input)[0]).toBe("description");
+    expect(input.description).toBe("What to look up.");
+    expect(output.description).toBe("The forecast.");
+  });
+
+  it("joins consecutive line comments and keeps JSDoc line breaks", () => {
+    const { input } = schemasOf(`
+type Input = {
+  // First line.
+  // Second line.
+  a: string;
+  /**
+   * Line one.
+   * Line two.
+   */
+  b: string;
+};
+type Output = { ok: boolean };`);
+
+    expect(input.properties.a.description).toBe("First line.\nSecond line.");
+    expect(input.properties.b.description).toBe("Line one.\nLine two.");
+  });
+
+  it("never gives a field the previous field's end-of-line comment", () => {
+    const { input } = schemasOf(`
+type Input = {
+  a: string; // About a.
+  b: string;
+};
+type Output = { ok: boolean };`);
+
+    expect(input.properties.a.description).toBe("About a.");
+    expect(input.properties.b).toEqual({ type: "string" });
+  });
+
+  it("ignores comments separated by a blank line, and tool directives", () => {
+    const { input } = schemasOf(`
+// A file header, not documentation.
+
+type Input = {
+  // Section heading.
+
+  a: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  B_C: string;
+};
+type Output = { ok: boolean };`);
+
+    expect(input.description).toBeUndefined();
+    expect(input.properties.a).toEqual({ type: "string" });
+    expect(input.properties.B_C).toEqual({ type: "string" });
+  });
+
+  it("prefers a field's comment over its type's, and uses the type's when the field has none", () => {
+    const { input } = schemasOf(`
+/** A postal address. */
+interface Address { line: string }
+type Input = {
+  /** Where to deliver. */
+  home: Address;
+  work: Address;
+};
+type Output = { ok: boolean };`);
+
+    expect(input.properties.home.description).toBe("Where to deliver.");
+    expect(input.properties.work.description).toBe("A postal address.");
+  });
+
+  it("adds no description from the standard library's types", () => {
+    const { input } = schemasOf(`
+type Input = { tags: Record<string, string>; picked: Partial<{ a: string }> };
+type Output = { ok: boolean };`);
+
+    expect(input.properties.tags.description).toBeUndefined();
+    expect(input.properties.picked.description).toBeUndefined();
+  });
+});
+
+describe("instructions", () => {
+  it("writes instructions after the description, and leaves them out when not set", () => {
+    const dir = makeProject({
+      "src/service.ts": `
+import { Varis } from "@usevaris/sdk";
+const varis = new Varis();
+varis.services.define<{ organisation_id: string }, { ok: boolean }>({
+${fields("with-instructions", {
+  instructions: `"Call search-organisations first, and pass its id as organisation_id."`,
+})}
+});
+varis.services.define<{ q: string }, { ok: boolean }>({
+${fields("without-instructions")}
+});`,
+    });
+
+    build(dir);
+    const [withInstructions, withoutInstructions] = readManifest(dir).services;
+
+    expect(withInstructions.instructions).toBe(
+      "Call search-organisations first, and pass its id as organisation_id.",
+    );
+    expect(Object.keys(withInstructions).slice(0, 4)).toEqual([
+      "slug",
+      "name",
+      "description",
+      "instructions",
+    ]);
+    expect(withoutInstructions).not.toHaveProperty("instructions");
+  });
+
+  it("rejects instructions that aren't a string through the type", () => {
+    const dir = makeProject({
+      "src/service.ts": `
+import { Varis } from "@usevaris/sdk";
+new Varis().services.define<{ q: string }, { ok: boolean }>({
+${fields("bad-instructions", { instructions: "42" })}
+});`,
+    });
+
+    const errors = buildErrors(dir);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain("not assignable to type 'string'");
+  });
+});

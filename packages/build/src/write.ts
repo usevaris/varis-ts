@@ -52,6 +52,7 @@ const FIELD_ORDER = [
   "slug",
   "name",
   "description",
+  "instructions",
   "service_type",
   "categories",
   "endpoint_url",

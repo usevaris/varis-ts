@@ -1539,6 +1539,16 @@ components:
           minLength: 20
           maxLength: 1024
           example: Returns current temperature, humidity, and rainfall in millimetres for any city.
+        instructions:
+          type: string
+          description: |
+            Optional. How an agent should use the service, when the input
+            fields alone don't say: another service to call first, or where a
+            value comes from. Agents read it with the description before
+            calling. Publishing is declarative, so omitting it, or sending an
+            empty string, removes any instructions already stored.
+          maxLength: 2000
+          example: Call search-organisations first, and pass the organisation's id as organisation_id.
         service_type:
           $ref: "#/components/schemas/ServiceType"
         categories:
@@ -1633,6 +1643,10 @@ components:
           type: string
           minLength: 20
           maxLength: 1024
+        instructions:
+          type: [string, "null"]
+          description: Omitted means unchanged. `null` or an empty string removes them.
+          maxLength: 2000
         service_type:
           $ref: "#/components/schemas/ServiceType"
         categories:
@@ -1681,6 +1695,7 @@ components:
         - input_schema
         - output_schema
         - status
+        - instructions
       properties:
         id:
           type: string
@@ -1694,6 +1709,12 @@ components:
           example: Weather with rainfall data
         description:
           type: string
+        instructions:
+          type: [string, "null"]
+          description: |
+            How to use the service, from its provider. Read it before
+            invoking: it may name another service to call first. `null` when
+            the provider gave none.
         service_type:
           $ref: "#/components/schemas/ServiceType"
         provider_name:

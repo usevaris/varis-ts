@@ -70,8 +70,16 @@ string. `varis build` fails with the file and line if it isn't.
   become JSON Schemas, and the endpoint must match them exactly. A response
   that doesn't match `Output` counts as a failed call and the caller isn't
   charged.
-- Add a doc comment to every field of `Input`. Agents calling the service read
-  it to decide what to send.
+- Add a comment to every field of `Input`. It becomes the field's
+  `description` in the schema, and agents calling the service read it to
+  decide what to send. `/** */`, `/* */`, and `//` comments all work, above
+  the field or at the end of its line. A comment above a named `Input` or
+  `Output` type describes the whole schema.
+- Set `instructions` when a caller needs to know something the input fields
+  can't say, such as another service to call first. For example: "Call
+  search-organisations first, and pass the organisation's id as
+  organisation_id." Leave it out when the description and field comments
+  are enough.
 - For a service that takes no input, write `define<void, Output>`. `void`,
   `undefined`, `never`, and `{}` all build to an empty input schema. A `GET`
   service then gets no query string, and a `POST` service the body `{}`.
@@ -205,6 +213,7 @@ Varis caller may see, and never serve one user's private data to it.
 | `slug` | Yes | Lowercase words joined by hyphens. Permanent. |
 | `name` | Yes | Display name. |
 | `description` | Yes | At least 20 characters. Say what the service returns and when to use it. |
+| `instructions` | No | At most 2,000 characters. How an agent should use the service, when the input alone doesn't say. |
 | `service_type` | Yes | `data`, `content`, `tool`, `skill`, `compute`, `memory`, `storage`, `model`, or `messaging`. |
 | `categories` | Yes | At least one category slug. |
 | `path` | One of these | Starts with `/`. Joined to `base_url` in `varis.json`. |

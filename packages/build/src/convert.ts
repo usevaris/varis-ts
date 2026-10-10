@@ -28,7 +28,7 @@
  *   object / interface / A & B        -> { type: "object", properties, required }
  *   { [key: string]: T }, Record<..>  -> adds additionalProperties: T
  *   optional field `x?: T`            -> left out of `required`
- *   JSDoc comment on a field          -> `description`
+ *   comment on a field or named type  -> `description` (see describe.ts)
  *
  * WHAT IS REJECTED (each one records an error, and no partial schema is produced)
  *   any, unknown, undefined (on its own), void, never, bigint, symbol,
@@ -86,8 +86,10 @@
  * - Reject another built-in class: add it to NON_JSON_OBJECTS.
  * - Add a JSON Schema keyword taken from JSDoc tags (e.g. @minimum):
  *   `convertObject`, next to where `description` is read.
+ * - Change which comments become descriptions: describe.ts.
  */
 import ts from "@typescript/typescript6";
+import { describeProperty, describeType } from "./describe.js";
 import { type BuildError, errorAt } from "./errors.js";
 
 /** A JSON Schema object. Kept loose on purpose, because we only build these and never read them. */
@@ -408,8 +410,12 @@ function convertObject(
   }
 
   // Everything else is a plain object: interfaces, type literals, mapped
-  // types like Record/Partial/Pick, and intersections.
-  const schema: JsonSchema = { type: "object" };
+  // types like Record/Partial/Pick, and intersections. A comment above a
+  // named type describes the whole object, and comes first in its JSON.
+  const typeDescription = describeType(type, checker);
+  const schema: JsonSchema = typeDescription
+    ? { description: typeDescription, type: "object" }
+    : { type: "object" };
   const properties: Record<string, JsonSchema> = {};
   const required: string[] = [];
 
@@ -425,13 +431,16 @@ function convertObject(
       inner,
     );
 
-    // The JSDoc comment above the property (`/** ... *\/`), as plain text.
-    // Agents read it to understand the field, so it goes into the schema.
-    const description = ts.displayPartsToString(
-      property.getDocumentationComment(checker),
-    ).trim();
-    // Spread `description` first so it appears at the top of the field's JSON.
-    if (description) child = { description, ...child };
+    // The comment on the property, as plain text. Agents read it to
+    // understand the field, so it goes into the schema. It replaces the
+    // description of the field's own type: `home: Address` with a comment
+    // on `home` says more about this field than the comment on Address.
+    const description = describeProperty(property, checker);
+    if (description) {
+      const { description: _typeDescription, ...rest } = child;
+      // First, so it appears at the top of the field's JSON.
+      child = { description, ...rest };
+    }
 
     properties[name] = child;
     // `x?: T` sets the Optional flag. Every other property is required.
