@@ -671,7 +671,8 @@ paths:
         its hash. The handshake expires after `expires_in` seconds, 10 minutes,
         whether or not anyone approves it.
 
-        Unauthenticated, because the developer has no token yet.
+        Unauthenticated, because the developer has no token yet, so limited
+        per IP address.
       tags: [CLI]
       # An empty list overrides the document-wide default: no credential.
       security: []
@@ -694,6 +695,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/RateLimited"
         "500":
           description: The sign-in could not be started. Retry.
           content:
@@ -761,6 +764,20 @@ paths:
                     error_description: Polling too often. Wait the new interval before polling again.
                     interval: 10
                     request_id: var_req_fc8e8702-6a7f-4f3f-9147-748936e5fee1
+        "429":
+          description: |
+            Too many polls from this IP address, across every sign-in from it.
+            The body is `slow_down`, so a device-flow client backs off and
+            keeps polling. Wait at least `Retry-After` seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceTokenError"
         "500":
           description: The poll failed on the server. Poll again after `interval`.
           content:
